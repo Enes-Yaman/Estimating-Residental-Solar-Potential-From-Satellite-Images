@@ -25,7 +25,12 @@ Follow these simple steps to dive into the project:
      pip install -r requirements.txt
      ```
 
-3. **Run Inference**:
+3. **Install Segformer**:
+   - For comprehensive documentation, installation guides, and additional resources on SegFormer, visit the [SegFormer repository][segformer-link].
+
+[segformer-link]: https://github.com/NVlabs/SegFormer
+
+4.**Run Inference**:
    - Modify paths in the `inference.py` script to suit your dataset.
    - Process your images:
      ```bash
