@@ -15,6 +15,7 @@ import scale_bar
 
 class Model:
     def __init__(self, model_path, colormap_path, output_path=None):
+        self.color_map = None
         self.model = SegformerForSemanticSegmentation.from_pretrained(model_path).to(
             "cuda" if torch.cuda.is_available() else "cpu")
         self.model.eval()  # Set the model to evaluation mode
