@@ -60,18 +60,25 @@ class SemanticSegmentationDataset(Dataset):
         return encoded_inputs
 
     def _create_dataset(self, images, annotations):
-        data = {"root_dir": self.root_dir, "feature_extractor": self.feature_extractor, "id2color": self.id2color,
-                "train": False,  # This will be overridden by individual subsets
-                "train_val_split": 0.8  # This will be overridden by individual subsets
+        # Common data configuration
+        data = {"root_dir": self.root_dir,
+                "feature_extractor": self.feature_extractor,
+                "id2color": self.id2color,
+                "train_val_test_split": (0.6, 0.2, 0.2)  # Split ratios for train, validation, and test
                 }
-        return DatasetDict({"train": SemanticSegmentationDataset(**data, train=True),
-                            "validation": SemanticSegmentationDataset(**data, train=False)})
+
+        # Creating dataset for each split
+        return DatasetDict({
+            "train": SemanticSegmentationDataset(**data, split="train"),
+            "validation": SemanticSegmentationDataset(**data, split="validation"),
+            "test": SemanticSegmentationDataset(**data, split="test")
+        })
 
 
 class Segmentation:
     """Image (semantic) segmentation dataset."""
 
-    def __init__(self, root_dir, number_of_labels, batch_size, epoch_number, lr=0.00006, ):
+    def __init__(self, root_dir, number_of_labels, batch_size, epoch_number, lr=0.0001, ):
         self.id2label = None
         self.number_of_labels = number_of_labels
         self.root_dir = root_dir
@@ -95,7 +102,7 @@ class Segmentation:
         self.read_rgb_files()
         self.read_annotation_files()
         self.read_color_map()
-
+        self.test_ds = None
         assert len(self.images) == len(self.annotations), "There must be as many images as there are segmentation maps"
 
     def set_training_arguments(self):
@@ -105,9 +112,9 @@ class Segmentation:
                                            save_strategy="epoch", save_steps=1, eval_steps=1,
                                            load_best_model_at_end=True, )
 
-    def set_trainer(self, train_ds, test_ds):
+    def set_trainer(self, train_ds,val_ds):
         self.trainer = Trainer(model=self.pretrained_model, args=self.train_arg, train_dataset=train_ds,
-                               eval_dataset=test_ds, compute_metrics=self.compute_metrics, )
+                               eval_dataset=val_ds, compute_metrics=self.compute_metrics, )
 
     def __len__(self):
         return len(self.images)
@@ -146,14 +153,29 @@ class Segmentation:
         label2id, self.id2label, id2color = self.arrange_label_id()
         self.download_pre_train_model(self.id2label, label2id)
         self.optimizer = torch.optim.AdamW(self.pretrained_model.parameters(), lr=self.lr)
+
         dataset = SemanticSegmentationDataset(root_dir=self.root_dir, feature_extractor=self.feature_extractor,
                                               id2color=id2color)
+
+        # Splitting the dataset
         indices = list(range(len(dataset)))
-        train_indices, test_indices = train_test_split(indices, test_size=0.1, random_state=42)
+        train_size = 0.6
+        test_val_size = 0.4
+        val_size = 0.5  # Half of test_val_size, which makes it 20% of total
+
+        # Primary split between train and test_val
+        train_indices, test_val_indices = train_test_split(indices, test_size=test_val_size, random_state=42)
+
+        # Further split test_val into validation and test
+        val_indices, test_indices = train_test_split(test_val_indices, test_size=val_size, random_state=42)
+
+        # Creating subsets for train, validation, and test
         train_ds = Subset(dataset, train_indices)
-        test_ds = Subset(dataset, test_indices)
+        val_ds = Subset(dataset, val_indices)
+        self.test_ds = Subset(dataset, test_indices)
+
         self.set_training_arguments()
-        self.set_trainer(train_ds=train_ds, test_ds=test_ds)
+        self.set_trainer(train_ds=train_ds, val_ds=val_ds)
 
     def download_pre_train_model(self, id2label, label2id):
         self.pretrained_model = SegformerForSemanticSegmentation.from_pretrained(
@@ -185,10 +207,17 @@ class Segmentation:
         self.preprocessing()
         self.trainer.train()
 
+    def test(self):
+        # Evaluate the model on the test dataset
+        results = self.trainer.evaluate(eval_dataset=self.test_ds)
+
+        print(results)
+
 
 if __name__ == "__main__":
     print("cuda" if torch.cuda.is_available() else "cpu")
     print("PyTorch Version:", torch.__version__)
     root_dir = "segmentation_dataset"
-    segmentation = Segmentation(root_dir, number_of_labels=6, batch_size=4, epoch_number=10)
+    segmentation = Segmentation(root_dir, number_of_labels=6, batch_size=4, epoch_number=20)
     segmentation.train()
+    segmentation.test()
