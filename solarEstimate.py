@@ -1,9 +1,11 @@
-import pandas as pd
-from geopy.distance import geodesic
 import math
 
-def estimate(A, coordinate, month, degree = 27):
-    data = pd.read_csv(r"\SolarEnergySystem\ankaraRadiation.csv")
+import pandas as pd
+from geopy.distance import geodesic
+
+
+def estimate(A, coordinate, month='Year', degree=27):
+    data = pd.read_csv(r"ankaraRadiation.csv")
     '''E(kWh) = A(Total solar panel Area-Total roof area for us-) * r(solar panel yield or efficiency) * H (Average solar radiation on tilted panels[kWh/m^2]) * Pr(Performance Ratio)
     A will come from satellite images segmentation (Direction and Area)
     r is constant value (Solar panel efficiency is generally around 15-20%-We say 17.5)
@@ -12,34 +14,30 @@ def estimate(A, coordinate, month, degree = 27):
     month = If you want to learn estimating for a selected month then type months name; if you want to annual estimate then type 'Year'
     Degree is the degree between surface and rooftop. Enter a degree or type 'Default'
     '''
+    degree = math.radians(degree)
     r = 0.175
     PR = 0.75
     flat = A.get('F')
-    N = A.get("N")
-    S = A.get("S")
-    E = A.get("E")
-    W = A.get("W")
+    north = A.get("N")
+    south = A.get("S")
+    east = A.get("E")
+    west = A.get("W")
     distances = {col: calculate_distance(coordinate, col) for col in data.columns}
     nearestCoordinate = min(distances, key=distances.get)
     if month == "Year":
-        H = data.loc["Year",nearestCoordinate] * 0.277778
-        flatEnergy = flat * r * H * PR
-        Nenergy = N * r * H * PR * abs(math.sin(degree))
-        Senergy = S * r * H * PR * abs(math.sin(degree))
-        Eenergy = E * r * H * PR * abs(math.sin(degree))
-        Wenergy = W * r * H * PR * abs(math.sin(degree))
-        return f"Estimated energy: {flatEnergy} kWh for flat surfaces , {Nenergy} kWh for N, {Senergy} kWh for S, {Eenergy} kWh for E, {Wenergy} kWh for W, total {flatEnergy+Nenergy+Senergy+Eenergy+Wenergy} per Year"
-    H = data.loc[month,nearestCoordinate] * 0.277778
-    flatEnergy = flat * r * H * PR
-    Nenergy = N * r * H * PR * abs(math.sin(degree))
-    Senergy = S * r * H * PR * abs(math.sin(degree))
-    Eenergy = E * r * H * PR * abs(math.sin(degree))
-    Wenergy = W * r * H * PR * abs(math.sin(degree))
-    return f"Estimated energy: {flatEnergy} kWh for flat surfaces , {Nenergy} kWh for N, {Senergy} kWh for S, {Eenergy} kWh for E, {Wenergy} kWh for W, total {flatEnergy+Nenergy+Senergy+Eenergy+Wenergy} for {month}"
+        H = data.loc["Year", nearestCoordinate] * 0.277778
+    else:
+        H = data.loc[month, nearestCoordinate] * 0.277778
+    flat_Energy = round(flat * r * H * PR, 2)
+    north_energy = round(north * r * H * PR * abs(math.cos(degree)), 2)
+    south_energy = round(south * r * H * PR * abs(math.cos(degree)), 2)
+    east_energy = round(east * r * H * PR * abs(math.cos(degree)), 2)
+    west_energy = round(west * r * H * PR * abs(math.cos(degree)), 2)
+    return (f"Estimated energy: {flat_Energy} kWh for flat surfaces , {north_energy} kWh for north, {south_energy} kWh for south, {east_energy} kWh for east, {west_energy} kWh for west, total {flat_Energy + north_energy + south_energy + east_energy + west_energy}"
+            f"{' per year' if month == 'Year' else f' for {month}'}")
+
 
 def calculate_distance(coord1, coord2):
     lat1, lon1 = map(float, coord1.split('x'))
     lat2, lon2 = map(float, coord2.split('x'))
     return geodesic((lat1, lon1), (lat2, lon2)).kilometers
-
-
