@@ -114,16 +114,15 @@ class Model:
         for image_path in images:
             im_name = os.path.basename(image_path)
             image = cv2.imread(image_path)
-
-            coord1 , coord2 = self.get_coordinates(image)
-            x1 , y1 = coord1
-            x2 , y2 = coord2
+            pixel_meter_ratio = scale_bar.find_length_scale_bar_web(image, int(im_name[:-5]))
+            coord1, coord2 = self.get_coordinates(image)
+            x1, y1 = coord1
+            x2, y2 = coord2
             roi = image[y1:y2, x1:x2]
             output_image, mask = self.predict(roi)
             cv2.imwrite(f"{self.recording_path}/{im_name}", output_image)
             area_Dict = {'N': 0, 'S': 0, 'W': 0, 'E': 0, 'F': 0}
             for label, name in self.id2name.items():
-                pixel_meter_ratio = scale_bar.find_length_scale_bar_web(image, int(im_name[:-5]))
                 area = scale_bar.calc_mask_area(mask.numpy(), label, pixel_meter_ratio)
                 if name == 'flat':
 

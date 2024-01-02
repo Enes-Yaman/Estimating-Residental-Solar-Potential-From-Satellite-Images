@@ -21,10 +21,10 @@ def find_length_scale_bar_web(image, meter):
     scale_bar_contours = sorted(scale_bar_contours, key=lambda ctr: cv2.boundingRect(ctr)[0])
 
     _, _, w, h = cv2.boundingRect(scale_bar_contours[-1])
-    if w > h * 5:  # This is a simple heuristic and may need adjustment
+    if w > h * 4:  # This is a simple heuristic and may need adjustment
         return meter / w
     else:
-        raise Exception('Bulamadım abi')
+        raise Exception('Error : Color bar not found')
 
 
 def calc_mask_area(mask, label, pixel_meter_ratio):
