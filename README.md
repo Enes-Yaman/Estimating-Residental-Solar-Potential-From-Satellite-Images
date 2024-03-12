@@ -1,6 +1,9 @@
 
 # Estimating Residential Solar Potential From Satellite Images
 
+For more detailed information, see our [Project Paper](/Final%20Report.pdf) in the project documents.
+
+
 ## Overview 🌍
 This project employs cutting-edge satellite imagery and machine learning techniques to accurately estimate the solar potential of residential rooftops. By analyzing rooftop orientations, it provides invaluable insights into the feasibility of solar panel installations in residential areas.
 
